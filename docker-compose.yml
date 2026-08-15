@@ -1,0 +1,78 @@
+# ============================================
+# SuperSRT Docker Compose Configuration
+# ============================================
+
+version: '3.8'
+
+services:
+  supersrt:
+    build: .
+    container_name: supersrt
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - CACHE_ENABLED=true
+      - CACHE_LOCATION=/app/cache
+      - OUTPUT_DIR=/app/output
+      - LOG_LEVEL=INFO
+      - PARALLEL_WORKERS=4
+    volumes:
+      - ./data:/app/data
+      - ./cache:/app/cache
+      - ./output:/app/output
+      - ./logs:/app/logs
+      - ./backups:/app/backups
+      - ./.env:/app/.env
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    command: ["api", "--host", "0.0.0.0", "--port", "8000"]
+    networks:
+      - supersrt-network
+
+  supersrt-redis:
+    image: redis:7.2-alpine
+    container_name: supersrt-redis
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    networks:
+      - supersrt-network
+
+  supersrt-postgres:
+    image: postgres:16-alpine
+    container_name: supersrt-postgres
+    environment:
+      - POSTGRES_USER=${DB_USER:-supersrt}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-supersrt}
+      - POSTGRES_DB=${DB_NAME:-supersrt}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - supersrt-network
+
+  supersrt-nginx:
+    image: nginx:alpine
+    container_name: supersrt-nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/usr/share/nginx/html:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - supersrt
+    networks:
+      - supersrt-network
+
+volumes:
+  redis-data:
+  postgres-data:
+
+networks:
+  supersrt-network:
+    driver: bridge
