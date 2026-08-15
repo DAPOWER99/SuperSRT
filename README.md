@@ -5,7 +5,7 @@
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-AI-orange.svg)](https://openrouter.ai)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
-[![Downloads](https://img.shields.io/badge/downloads-1k%2Fmonth-brightgreen)](https://pypi.org/project/supersrt)
+[![Downloads](https://img.shields.io/badge/downloads-30%2Fmonth-brightgreen)](https://pypi.org/project/supersrt)
 
 **SuperSRT** is a next-generation, AI-powered command-line toolkit for intelligent SubRip (.srt) subtitle processing. Built with the [OpenRouter API](https://openrouter.ai) at its core, it combines traditional subtitle manipulation with cutting-edge artificial intelligence to deliver unmatched accuracy, speed, and versatility.
 
