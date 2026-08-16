@@ -1,6 +1,6 @@
 # SuperSRT - Advanced AI-Powered Subtitle Processing Suite
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: GPL-3.0](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/GPL3.0)
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-AI-orange.svg)](https://openrouter.ai)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
