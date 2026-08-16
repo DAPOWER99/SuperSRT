@@ -1,78 +1,273 @@
 # ============================================
 # SuperSRT Docker Compose Configuration
+# Version: 2.0.0
+# Optimized for FREE Models
 # ============================================
 
 version: '3.8'
 
 services:
+  # Main SuperSRT Application
   supersrt:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: supersrt:latest
     container_name: supersrt
+    restart: unless-stopped
+    
     environment:
+      # Required
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - CACHE_ENABLED=true
-      - CACHE_LOCATION=/app/cache
-      - OUTPUT_DIR=/app/output
-      - LOG_LEVEL=INFO
-      - PARALLEL_WORKERS=4
+      
+      # Core Configuration
+      - SUPERSRT_LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SUPERSRT_CACHE_ENABLED=${CACHE_ENABLED:-true}
+      - SUPERSRT_CACHE_TTL=${CACHE_TTL:-86400}
+      - SUPERSRT_PARALLEL_WORKERS=${PARALLEL_WORKERS:-4}
+      - SUPERSRT_VERBOSE=${VERBOSE:-false}
+      - SUPERSRT_BACKUP_ENABLED=${BACKUP_ENABLED:-true}
+      
+      # AI Model Configuration (Free Models Only)
+      - SUPERSRT_DEFAULT_MODEL=${DEFAULT_MODEL:-nvidia/nemotron-3-ultra-550b-a55b:free}
+      - SUPERSRT_TRANSLATION_MODEL=${TRANSLATION_MODEL:-google/gemini-2.0-flash-exp:free}
+      - SUPERSRT_IMPROVEMENT_MODEL=${IMPROVEMENT_MODEL:-meta-llama/llama-3.3-70b-instruct:free}
+      - SUPERSRT_SUMMARIZATION_MODEL=${SUMMARIZATION_MODEL:-qwen/qwen3-next-80b-a3b-instruct:free}
+      - SUPERSRT_ANALYSIS_MODEL=${ANALYSIS_MODEL:-anthropic/claude-3-haiku-20240307:free}
+      
+      # Performance
+      - SUPERSRT_BATCH_SIZE=${BATCH_SIZE:-10}
+      - SUPERSRT_MAX_TOKENS=${MAX_TOKENS:-4096}
+      - SUPERSRT_TEMPERATURE=${TEMPERATURE:-0.7}
+      - SUPERSRT_TIMEOUT=${TIMEOUT:-60}
+      
+      # Features
+      - SUPERSRT_FEATURE_CACHE=${FEATURE_CACHE:-true}
+      - SUPERSRT_FEATURE_PARALLEL=${FEATURE_PARALLEL:-true}
+      - SUPERSRT_FEATURE_BACKUP=${FEATURE_BACKUP:-true}
+      - SUPERSRT_FEATURE_PROGRESSIVE=${FEATURE_PROGRESSIVE:-true}
+      
+      # Timezone
+      - TZ=${TZ:-UTC}
+    
     volumes:
       - ./data:/app/data
       - ./cache:/app/cache
       - ./output:/app/output
       - ./logs:/app/logs
       - ./backups:/app/backups
-      - ./.env:/app/.env
+      - ./config:/app/config
+      - ./models:/app/models
+      - ./.env:/app/.env:ro
+    
     ports:
-      - "8000:8000"
-    restart: unless-stopped
-    command: ["api", "--host", "0.0.0.0", "--port", "8000"]
+      - "${API_PORT:-8000}:8000"   # API Server
+      - "${WEB_PORT:-5000}:5000"   # Web UI (if implemented)
+      - "${ALT_PORT:-8080}:8080"   # Alternative port
+    
+    # Resource limits for stability
+    deploy:
+      resources:
+        limits:
+          cpus: '${MAX_CPUS:-4}'
+          memory: ${MAX_MEMORY:-8G}
+        reservations:
+          cpus: '${MIN_CPUS:-2}'
+          memory: ${MIN_MEMORY:-2G}
+    
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Command override (uncomment as needed)
+    # command: ["--help"]
+    # command: ["translate", "--help"]
+    # command: ["api", "--host", "0.0.0.0", "--port", "8000"]
+    # command: ["interactive", "-i", "/app/data/subtitle.srt", "--ai-assist"]
+    # command: ["wav", "-i", "/app/data/audio.wav", "-o", "/app/output/subtitle.srt", "-l", "en-US"]
+    
+    depends_on:
+      - supersrt-redis
+      - supersrt-postgres
+    
     networks:
       - supersrt-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # Redis Cache (for AI response caching)
   supersrt-redis:
     image: redis:7.2-alpine
     container_name: supersrt-redis
+    restart: unless-stopped
+    
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_MAXMEMORY=${REDIS_MAXMEMORY:-512mb}
+    
     volumes:
       - redis-data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
+    
     ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+      - "${REDIS_PORT:-6379}:6379"
+    
+    command: redis-server /usr/local/etc/redis/redis.conf --appendonly yes --maxmemory ${REDIS_MAXMEMORY:-512mb} --maxmemory-policy allkeys-lru ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
+    
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
     networks:
       - supersrt-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # PostgreSQL (for metadata and job tracking)
   supersrt-postgres:
     image: postgres:16-alpine
     container_name: supersrt-postgres
+    restart: unless-stopped
+    
     environment:
       - POSTGRES_USER=${DB_USER:-supersrt}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-supersrt}
       - POSTGRES_DB=${DB_NAME:-supersrt}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
+    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-supersrt} -d ${DB_NAME:-supersrt}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
     networks:
       - supersrt-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # Prometheus Metrics (optional monitoring)
+  supersrt-prometheus:
+    image: prom/prometheus:latest
+    container_name: supersrt-prometheus
+    restart: unless-stopped
+    
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    
+    networks:
+      - supersrt-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Grafana Dashboard (optional visualization)
+  supersrt-grafana:
+    image: grafana/grafana:latest
+    container_name: supersrt-grafana
+    restart: unless-stopped
+    
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+      - GF_SERVER_ROOT_URL=${GRAFANA_URL:-http://localhost:3000}
+    
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana-dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana-datasources:/etc/grafana/provisioning/datasources:ro
+    
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    
+    depends_on:
+      - supersrt-prometheus
+    
+    networks:
+      - supersrt-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Nginx Reverse Proxy (optional)
   supersrt-nginx:
     image: nginx:alpine
     container_name: supersrt-nginx
+    restart: unless-stopped
+    
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./static:/usr/share/nginx/html:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    
     ports:
-      - "80:80"
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    
     depends_on:
       - supersrt
+    
     networks:
       - supersrt-network
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   redis-data:
+    driver: local
   postgres-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
 
 networks:
   supersrt-network:
     driver: bridge
+    name: supersrt-network
