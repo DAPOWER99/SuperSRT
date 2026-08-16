@@ -1,6 +1,6 @@
 # SuperSRT - Advanced AI-Powered Subtitle Processing Suite
 
-![License: GPL-3.0](https://img.shields.io/badge/License-PhoenixLC--2.0-yellow.svg)
+![License: PhoenixLC-2.0](https://img.shields.io/badge/License-PhoenixLC--2.0-yellow.svg)
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://python.org)
 [![OpenRouter](https://img.shields.io/badge/OpenRouter-AI-orange.svg)](https://openrouter.ai)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -475,8 +475,8 @@ python -m http.server --directory docs/_build/
 
 ## 📄 License
 
-Distributed under the GPL-3.0 License. See `LICENSE` for more information.
-
+Distributed under the Phoenix-2.0 License. See `LICENSE` for more information.
+This is a custom License For Custom Purpose, so if you haven't heard of it, it's because it doesn't exist anywhere else
 ## 🙏 Acknowledgments
 
 ### Core Technologies
